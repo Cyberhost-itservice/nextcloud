@@ -1,0 +1,76 @@
+#### Nextcloud 21 Install ####
+# updating 
+apt-get update
+apt-get upgrade
+# Installing LAMP-Stack
+apt install lamp-server^
+# Install PHP Moduls
+apt install php-zip php-dompdf php-xml php-mbstring php-gd php-curl php-imagick php-intl php-bcmath php-gmp libmagickcore-6.q16-6-extra unzip
+# adjust PHP.ini file
+nano /etc/php/7.4/apache2/php.ini
+memory_limit = 1024M
+upload_max_filesize = 16G
+post_max_size = 16G
+date.timezone = Europe/Berlin
+# Maria DB Server Konfiguration
+mysql_secure_installation
+# open SQL dialoge
+mysql
+# create database calles nextcloud
+CREATE DATABASE nextcloud; 
+# create database user with password
+CREATE USER 'nextclouduser'@'localhost' IDENTIFIED BY 'password_here';
+#grant accesss to databse
+GRANT ALL PRIVILEGES ON nextcloud.* TO 'nextclouduser'@'localhost';
+#save changes and exit
+FLUSH PRIVILEGES;
+EXIT;
+# Download lastest nextcloud version
+cd /tmp && wget https://download.nextcloud.com/server/releases/latest.zip
+unzip latest.zip
+mv nextcloud /var/www/
+#create new conf
+nano /etc/apache2/sites-available/nextcloud.conf
+<VirtualHost *:80>
+     ServerAdmin master@domain.com
+     DocumentRoot /var/www/nextcloud/
+     ServerName demo.domain.com
+     ServerAlias www.demo.domain.com
+  
+     Alias /nextcloud "/var/www/nextcloud/"
+     <Directory /var/www/nextcloud/>
+        Options +FollowSymlinks
+        AllowOverride All
+        Require all granted
+          <IfModule mod_dav.c>
+            Dav off
+          </IfModule>
+        SetEnv HOME /var/www/nextcloud
+        SetEnv HTTP_HOME /var/www/nextcloud
+     </Directory>
+     ErrorLog ${APACHE_LOG_DIR}/error.log
+     CustomLog ${APACHE_LOG_DIR}/access.log combined
+</VirtualHost>
+# Enable the NextCloud and Rewrite Module
+a2ensite nextcloud.conf
+a2enmod rewrite
+a2enmod headers
+a2enmod env
+a2enmod dir
+a2enmod mime
+# restart apache
+systemctl restart apache2.service
+# prepare data folder
+mkdir /home/data/
+chown -R www-data:www-data /home/data/
+chown -R www-data:www-data /var/www/nextcloud/
+chmod -R 755 /var/www/nextcloud/
+## create Let's Encrypt SSL-Certificate
+#install certbot
+apt install certbot python3-certbot-apache
+certbot --apache -m master@domain.com -d cloud.domain.com
+#--> only lasts 90 days
+#install crontab
+crontab -e
+40 3 * * 0 letsencrypt renew >> /var/log/letsencrypt-renew.log && service apache2 reload > /dev/null 2>&1
+--> Domain ansurfen und Einrichtung abschließen
