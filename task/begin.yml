@@ -1,0 +1,87 @@
+---
+- name: Install and configure LAMP stack and Nextcloud
+  hosts: all
+  become: yes
+  tasks:
+    - name: Update the package cache
+      apt:
+        update_cache: yes
+        
+    - name: Upgrade installed packages
+      apt:
+        upgrade: yes
+        
+    - name: Install LAMP stack
+      apt:
+        name: lamp-server^
+        
+    - name: Install PHP modules
+      apt:
+        name:
+        - php-zip
+        - php-dompdf
+        - php-xml
+        - php-mbstring
+        - php-gd
+        - php-curl
+        - php-imagick
+        - php-intl
+        - php-bcmath
+        - php-gmp
+        - libmagickcore-6.q16-6-extra
+        - unzip
+        
+    - name: Adjust PHP.ini
+      lineinfile:
+        dest: /etc/php/7.4/apache2/php.ini
+        line: memory_limit = 1024M
+        insertafter: "^memory_limit =.*"
+      lineinfile:
+        dest: /etc/php/7.4/apache2/php.ini
+        line: upload_max_filesize = 16G
+        insertafter: "^upload_max_filesize =.*"
+      lineinfile:
+        dest: /etc/php/7.4/apache2/php.ini
+        line: post_max_size = 16G
+        insertafter: "^post_max_size =.*"
+      lineinfile:
+        dest: /etc/php/7.4/apache2/php.ini
+        line: date.timezone = Europe/Berlin
+        insertafter: "^date.timezone =.*"
+        
+    - name: Configure MariaDB server
+      shell: |
+        mysql_secure_installation
+        mysql -e "CREATE DATABASE nextcloud; 
+                  CREATE USER 'nextclouduser'@'localhost' IDENTIFIED BY 'password_here';
+                  GRANT ALL PRIVILEGES ON nextcloud.* TO 'nextclouduser'@'localhost';
+                  FLUSH PRIVILEGES;
+                  EXIT;"
+        
+    - name: Download and install Nextcloud
+      shell: |
+        cd /tmp
+        wget https://download.nextcloud.com/server/releases/latest.zip
+        unzip latest.zip
+        mv nextcloud /var/www/
+        
+    - name: Create nextcloud.conf
+      copy:
+        content: |
+          <VirtualHost *:80>
+               ServerAdmin master@domain.com
+               DocumentRoot /var/www/nextcloud/
+               ServerName demo.domain.com
+               ServerAlias www.demo.domain.com
+        
+               Alias /nextcloud "/var/www/nextcloud/"
+               <Directory /var/www/nextcloud/>
+                  Options +FollowSymlinks
+                  AllowOverride All
+                  Require all granted
+                    <IfModule mod_dav.c>
+                      Dav off
+                    </IfModule>
+                  SetEnv HOME /var/www/nextcloud
+                  SetEnv HTTP_HOME /var/www/nextcloud
+               </Directory>
