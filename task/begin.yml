@@ -14,6 +14,11 @@
     - name: Install LAMP stack
       apt:
         name: lamp-server^
+        - apache2
+        - mysql-server
+        - php
+        - libapache2-mod-php
+        - php-mysql
         
     - name: Install PHP modules
       apt:
